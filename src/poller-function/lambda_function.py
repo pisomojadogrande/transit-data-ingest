@@ -3,10 +3,46 @@ import logging
 import boto3
 
 import requests
-import gtfs_realtime_pb2
+from gtfs_realtime_pb2 import FeedMessage
 
 GTFS_VEHICLE_POSITION_URL = os.environ.get('GTFS_VEHICLE_POSITION_URL')
 API_KEY_PARAMETER_ARN = os.environ.get('API_KEY_PARAMETER_ARN')
+
+class EntityField:
+    def __init__(self, name, getter_fn):
+        self.name = name
+        self.getter_fn = getter_fn
+
+    def get_string_value(self, entity):
+        try:
+            return str(self.getter_fn(entity))
+        except AttributeError:
+            return 'None'
+
+
+ENTITY_FIELDS = [
+    EntityField('timestamp', lambda e: e.vehicle.timestamp),
+    EntityField('trip_id', lambda e: e.vehicle.trip.trip_id),
+    EntityField('trip_start_time', lambda e: e.vehicle.trip.start_time),
+    EntityField('trip_start_date', lambda e: e.vehicle.trip.start_date),
+    EntityField('route_id', lambda e: e.vehicle.trip.route_id),
+    EntityField('direction_id', lambda e: e.vehicle.trip.direction_id),
+    EntityField('latitude', lambda e: e.vehicle.position.latitude),
+    EntityField('longitude', lambda e: e.vehicle.position.longitude),
+    EntityField('bearing', lambda e: e.vehicle.position.bearing),
+    EntityField('current_stop_sequence', lambda e: e.vehicle.current_stop_sequence),
+    EntityField('current_status', lambda e: e.vehicle.current_status),
+    EntityField('stop_id', lambda e: e.vehicle.stop_id),
+    EntityField('occupancy_status', lambda [alias]
+    lg = lg1
+    lg1 = lg1-specific --all
+    lg2 = lg2-specific --all
+    lg3 = lg3-specific --all
+
+    lg1-specific = log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(auto)%d%C(reset)'
+    lg2-specific = log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold cyan)%aD%C(reset) %C(bold green)(%ar)%C(reset)%C(auto)%d%C(reset)%n''          %C(white)%s%C(reset) %C(dim white)- %an%C(reset)'
+    lg3-specific = log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold cyan)%aD%C(reset) %C(bold green)(%ar)%C(reset) %C(bold cyan)(committed: %cD)%C(reset) %C(auto)%d%C(reset)%n''          %C(white)%s%C(reset)%n''          %C(dim white)- %an <%ae> %C(reset) %C(dim white)(committer: %cn <%ce>)%C(reset)'e: e.vehicle.occupancy_status)
+]
 
 ssm_client = boto3.client('ssm')
 
@@ -34,6 +70,12 @@ def lambda_handler(event, context):
             message.ParseFromString(r.content)
             logger.info(f"GTFS message timestamp {message.header.timestamp} with {len(message.entity)} entities")
             record_count = len(message.entity)
+
+            header_row = ','.join([entity_field.name for entity_field in ENTITY_FIELDS])
+            logger.info(f"Header row: {header_row}")
+            for entity in message.entity:
+                record_row = ','.join([entity_field.get_string_value(entity) for entity_field in ENTITY_FIELDS])
+                logger.info(record_row)
 
         else:
             logger.error(f"Received {r.status_code}: {r.text}")
