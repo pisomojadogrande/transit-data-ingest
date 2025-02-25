@@ -1,11 +1,15 @@
 import os
 import logging
-import boto3
+import time
+import io
 
+import boto3
 import requests
 from gtfs_realtime_pb2 import FeedMessage
 
 GTFS_VEHICLE_POSITION_URL = os.environ.get('GTFS_VEHICLE_POSITION_URL')
+INGESTED_DATA_S3_BUCKET = os.environ.get('INGESTED_DATA_S3_BUCKET')
+INGESTED_DATA_S3_PREFIX = os.environ.get('INGESTED_DATA_S3_PREFIX')
 API_KEY_PARAMETER_ARN = os.environ.get('API_KEY_PARAMETER_ARN')
 
 class EntityField:
@@ -37,6 +41,7 @@ ENTITY_FIELDS = [
 ]
 
 ssm_client = boto3.client('ssm')
+s3 = boto3.resource('s3')
 
 logger = logging.getLogger()
 logger.setLevel("INFO")
@@ -56,18 +61,24 @@ def lambda_handler(event, context):
         }
         r = requests.get(GTFS_VEHICLE_POSITION_URL, headers=request_headers)
         if r.status_code == requests.codes.ok:
-            logger.info(f"GTFS response length {len(r.content)}")
 
             message = FeedMessage()
             message.ParseFromString(r.content)
             logger.info(f"GTFS message timestamp {message.header.timestamp} with {len(message.entity)} entities")
             record_count = len(message.entity)
 
-            header_row = ','.join([entity_field.name for entity_field in ENTITY_FIELDS])
-            logger.info(f"Header row: {header_row}")
+            csv_buffer = io.StringIO()
+            header_row = ','.join([entity_field.name for entity_field in ENTITY_FIELDS]) + "\n"
+            csv_buffer.write(header_row)
             for entity in message.entity:
-                record_row = ','.join([entity_field.get_string_value(entity) for entity_field in ENTITY_FIELDS])
-                logger.info(record_row)
+                record_row = ','.join([entity_field.get_string_value(entity) for entity_field in ENTITY_FIELDS]) + "\n"
+                csv_buffer.write(record_row)
+
+            t = time.gmtime(message.header.timestamp)
+            s3_object_key = f"{INGESTED_DATA_S3_PREFIX}{t.tm_year:04}/{t.tm_mon:02}/{t.tm_mday:02}/{t.tm_hour:02}/{t.tm_min:02}/{t.tm_sec:02}/{message.header.timestamp}.csv"
+            logger.info(f"Writing {len(csv_buffer.getvalue())} bytes to s3://{INGESTED_DATA_S3_BUCKET}/{s3_object_key}")
+            s3_object = s3.Object(INGESTED_DATA_S3_BUCKET, s3_object_key)
+            s3_object.put(Body=csv_buffer.getvalue())
 
         else:
             logger.error(f"Received {r.status_code}: {r.text}")

@@ -2,6 +2,16 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: Ingest data from WMATA's GTFS endpoint
 
 Parameters:
+    IngestedDataS3Bucket:
+        Type: String
+        Description: Name of S3 bucket to which data will be written
+
+    IngestedDataS3Prefix:
+        Type: String
+        Description: Prefix within S3 bucket to which data will be written; must end in '/'
+        AllowedPattern: '[0-9a-z\-\.\/]+\/'
+        Default: 'testing/'
+
     GTFSVehiclePositionURL:
         Type: String
         Description: URL for GTFS vehicle positions
@@ -44,6 +54,9 @@ Resources:
                         - Effect: Allow
                           Action: ssm:GetParameter
                           Resource: !Ref APIKeyParameterARN
+                        - Effect: Allow
+                          Action: s3:PutObject
+                          Resource: !Sub "arn:aws:s3:::${IngestedDataS3Bucket}/${IngestedDataS3Prefix}*"
 
     PollerFunction:
         Type: AWS::Lambda::Function
@@ -52,6 +65,8 @@ Resources:
             Environment:
                 Variables:
                     GTFS_VEHICLE_POSITION_URL: !Ref GTFSVehiclePositionURL
+                    INGESTED_DATA_S3_BUCKET: !Ref IngestedDataS3Bucket
+                    INGESTED_DATA_S3_PREFIX: !Ref IngestedDataS3Prefix
                     API_KEY_PARAMETER_ARN: !Ref APIKeyParameterARN
             Handler: lambda_function.lambda_handler
             Layers:
