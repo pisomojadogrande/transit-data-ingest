@@ -75,6 +75,42 @@ Resources:
             Runtime: !Ref PythonRuntime
             Timeout: 30
 
+    SchedulerRole:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Version: 2012-10-17
+                Statement:
+                    - Effect: Allow
+                      Principal:
+                        Service: scheduler.amazonaws.com
+                      Action: sts:AssumeRole
+                      Condition:
+                        StringEquals:
+                            "aws:SourceAccount": !Ref AWS::AccountId
+            Policies:
+                - PolicyName: invoke-target
+                  PolicyDocument:
+                    Version: 2012-10-17
+                    Statement:
+                        - Effect: Allow
+                          Action: lambda:InvokeFunction
+                          Resource: !GetAtt PollerFunction.Arn
+
+    Schedule:
+        Type: AWS::Scheduler::Schedule
+        Properties:
+            FlexibleTimeWindow:
+                MaximumWindowInMinutes: 1
+                Mode: "FLEXIBLE"
+            ScheduleExpression: rate(2 minutes)
+            State: ENABLED
+            Target:
+                Arn: !GetAtt PollerFunction.Arn
+                RetryPolicy:
+                    MaximumRetryAttempts: 0
+                RoleArn: !GetAtt SchedulerRole.Arn
+
 
 
 
