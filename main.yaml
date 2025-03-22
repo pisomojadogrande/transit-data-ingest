@@ -10,7 +10,7 @@ Parameters:
         Type: String
         Description: Prefix within S3 bucket to which data will be written; must end in '/'
         AllowedPattern: '[0-9a-z\-\.\/]+\/'
-        Default: 'testing/'
+        Default: 'ingest/testing/'
 
     GTFSVehiclePositionURL:
         Type: String
@@ -103,7 +103,7 @@ Resources:
             FlexibleTimeWindow:
                 MaximumWindowInMinutes: 1
                 Mode: "FLEXIBLE"
-            ScheduleExpression: rate(2 minutes)
+            ScheduleExpression: rate(1 minutes)
             State: ENABLED
             Target:
                 Arn: !GetAtt PollerFunction.Arn

@@ -75,7 +75,7 @@ def lambda_handler(event, context):
                 csv_buffer.write(record_row)
 
             t = time.gmtime(message.header.timestamp)
-            s3_object_key = f"{INGESTED_DATA_S3_PREFIX}{t.tm_year:04}-{t.tm_mon:02}-{t.tm_mday:02}/{t.tm_hour:02}:{t.tm_min:02}:{t.tm_sec:02}-{message.header.timestamp}.csv"
+            s3_object_key = f"{INGESTED_DATA_S3_PREFIX}{t.tm_year:04}-{t.tm_mon:02}-{t.tm_mday:02}/{t.tm_hour:02}:{t.tm_min:02}:{t.tm_sec:02}.csv"
             logger.info(f"Writing {len(csv_buffer.getvalue())} bytes to s3://{INGESTED_DATA_S3_BUCKET}/{s3_object_key}")
             s3_object = s3.Object(INGESTED_DATA_S3_BUCKET, s3_object_key)
             s3_object.put(Body=csv_buffer.getvalue())
